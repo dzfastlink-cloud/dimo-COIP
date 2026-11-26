@@ -35,7 +35,7 @@ video{position:fixed;inset:0;width:100%;height:100%;background:#000;object-fit:c
 .row.sel .n{color:#000}
 /* ===== الإعدادات: تصميم جديد (شريط جانبي + محتوى) ===== */
 #set{inset:0;border:0;border-radius:0;padding:calc(var(--sf) + 1.5%) calc(var(--sf) + 2.5%);display:flex;flex-direction:row;overflow:hidden;background:linear-gradient(135deg,#0d2f66,#050b1a 70%)}
-#sSide{display:none;width:27%;flex:none;min-height:0;display:flex;flex-direction:column;padding:12px 12px 8px;background:#040a18cc;border-left:1px solid #4f7fc966}
+#sSide{width:27%;flex:none;min-height:0;display:flex;flex-direction:column;padding:12px 12px 8px;background:#040a18cc;border-left:1px solid #4f7fc966}
 #sSide .brand{display:flex;align-items:center;gap:10px;padding:2px 8px 10px;border-bottom:1px solid #4f7fc933;margin-bottom:8px}
 #sLogo{width:38px;height:38px;object-fit:contain;border-radius:10px;background:#0006}
 #sSide .brand b{display:block;font-size:1.25rem}
@@ -454,6 +454,7 @@ function drawSet(){
   if(scr){var th=vis/L.length*100,tp=st/L.length*100;h+='<div class="trk"><i style="top:'+tp+'%;height:'+th+'%"></i></div>'}
   $('sBody').className=scr?'scr':'';
   $('sBody').innerHTML=h;
+  $('sSide').style.display=sm==='top'?'none':'';
   $('sTabs').className=sm==='main'?'':'sub';
   $('sTabs').innerHTML=CATS.map(function(n,i){return'<div class="tab'+(i===cat?' on':'')+'"><span class="ti">'+CICON[i]+'</span>'+n+'</div>'}).join('');
   $('sT').innerHTML=sm==='top'?esc(o.title):sm==='main'?'<em>الإعدادات ›</em> '+esc(o.title):'<em>'+esc(CATS[cat])+' ›</em> '+esc(o.title);
