@@ -1,2 +1,2 @@
-# dimo2
+# dimo
 wasslatv
