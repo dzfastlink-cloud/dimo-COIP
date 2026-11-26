@@ -114,7 +114,7 @@ var DEF=[];
 
 (function(){
 var $=function(i){return document.getElementById(i)};
-var v=$('v'),hls=null,ch=[],groups=[],gi=0,view=[],cur=0,sel=0,mode='play',si=0,rc=0,rt=0,lk='',hc=0,ji=0,sk=0,cat=0,P={safe:3,engine:'auto',ar:'contain',infoMs:5000,clock:true,logo:true,maxRt:2,resume:true,autoNext:false},T={};
+var v=$('v'),hls=null,ch=[],groups=[],gi=0,view=[],cur=0,sel=0,mode='play',si=0,rc=0,rt=0,lk='',hc=0,ji=0,sk=0,cat=0,P={safe:3,engine:'auto',ar:'contain',infoMs:5000,clock:true,logo:true,maxRt:2,resume:true,autoNext:false,favoriteKey:'longEnter'},T={},favorites=[],enterPending=false,enterLong=false;
 function tm(k,f,ms){clearTimeout(T[k]);T[k]=setTimeout(f,ms)}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function toast(t){var e=$('toast');e.textContent=t;e.classList.remove('hide');tm('t',function(){e.classList.add('hide')},2500)}
@@ -212,8 +212,23 @@ function closeAll(){clearTimeout(T.l);mode='play';$('list').classList.add('hide'
 /* الإعدادات: صفحة متكاملة بأقسام */
 var srcs=[],sm='main',cf=0,cc=0,gc=0,conf=false,wk=null,msel=false,mset={},VER='2.1',svis=8,lastBk=0;
 function backOnce(){var n=Date.now();if(n-lastBk<150)return;lastBk=n;back()}
-var CATS=['المصادر','القنوات','العرض','التشغيل','نسخ احتياطي','حول'];
+var CATS=['المصادر','القنوات','العرض','التشغيل','نسخ احتياطي','حول','الريموت والمفضلة'];
 function savePrefs(){store('prefs',JSON.stringify(P))}
+function normalizeFavoriteKey(){if(['longEnter','f','MediaFavorite'].indexOf(P.favoriteKey)<0)P.favoriteKey='longEnter'}
+function saveFavorites(){store('favorites',JSON.stringify(favorites))}
+function loadFavorites(){
+  try{
+    var a=JSON.parse(store('favorites')||'[]'),seen={};
+    favorites=Array.isArray(a)?a.filter(function(u){if(typeof u!=='string'||!u||seen[u])return false;seen[u]=1;return true}):[];
+  }catch(e){favorites=[]}
+}
+function toggleFavorite(){
+  var c=ch[cur];if(!c)return;
+  var i=favorites.indexOf(c.url);
+  if(i>=0){favorites.splice(i,1);toast('تمت الإزالة من المفضلة: '+c.name)}
+  else{favorites.push(c.url);toast('تمت الإضافة إلى المفضلة: '+c.name)}
+  saveFavorites();
+}
 function applyPrefs(){
   var n=useExo();
   v.style.objectFit=P.ar;v.style.display=n?'none':'';
@@ -221,7 +236,7 @@ function applyPrefs(){
   $('clock').style.display=P.clock?'':'none';$('iLogo').style.display=P.logo?'':'none';
   if(window.Android&&Android.setAspect)Android.setAspect(P.ar);
 }
-function loadPrefs(){try{var o=JSON.parse(store('prefs')||'{}');for(var k in o)if(k in P)P[k]=o[k]}catch(e){}applyPrefs()}
+function loadPrefs(){try{var o=JSON.parse(store('prefs')||'{}');for(var k in o)if(k in P)P[k]=o[k]}catch(e){}normalizeFavoriteKey();applyPrefs()}
 function saveSrcs(){store('srcs',JSON.stringify(srcs.map(function(s){return{id:s.id,name:s.name,enabled:s.enabled,text:s.text,hid:s.hid||[],del:s.del||[],ord:s.ord||[],ren:s.ren||{},gren:s.gren||{}}})))}
 function loadSrcs(){
   try{srcs=JSON.parse(store('srcs')||'null')}catch(e){srcs=null}
@@ -262,6 +277,7 @@ function back(){
   if(sm==='move'){wk=null;sm='ch';si=cc}
   else if(sm==='chact'){sm='ch';si=cc}
   else if(sm==='msact'){sm='ch';si=0}else if(sm==='ch'||sm==='grp'){msel=false;mset={};sm='src';si=0}
+  else if(sm==='fav'){sm='main';si=0}
   else if(sm==='grpact'){sm='grp';si=gc}
   else if(sm==='src'){sm='main';si=cf}
   else if(sm==='hid'){sm='main';si=1}
@@ -279,7 +295,7 @@ function opt(label,key,vals,labs){
 }
 function exportCfg(){
   var def={};DEF.forEach(function(d){def[d.id]=1});
-  var o={app:'wassla-tv',v:1,prefs:P,srcs:srcs.map(function(s){var r={id:s.id,name:s.name,enabled:s.enabled,hid:s.hid||[],del:s.del||[],ord:s.ord||[],ren:s.ren||{},gren:s.gren||{}};if(!def[s.id])r.text=s.text;return r})};
+  var o={app:'wassla-tv',v:1,prefs:P,favorites:favorites,srcs:srcs.map(function(s){var r={id:s.id,name:s.name,enabled:s.enabled,hid:s.hid||[],del:s.del||[],ord:s.ord||[],ren:s.ren||{},gren:s.gren||{}};if(!def[s.id])r.text=s.text;return r})};
   var txt=JSON.stringify(o),name='wassla-tv-backup.json';
   try{
     if(window.Android&&Android.saveText){var p=Android.saveText(name,txt);toast(p?'تم الحفظ: '+p:'تعذر الحفظ');return}
@@ -323,6 +339,11 @@ function catItems(){
     it.push({t:'📥 استيراد الإعدادات من ملف',f:function(){$('file2').click()}});
     return{title:'نسخ احتياطي',list:it};
   }
+  if(cat===6){
+    it.push(opt('زر إضافة/إزالة المفضلة','favoriteKey',['longEnter','f','MediaFavorite'],['ضغط مطوّل على OK','F','زر المفضلة بالريموت']));
+    it.push({t:'⭐ إدارة المفضلة ('+favorites.length+')',f:function(){sm='fav';si=0;drawSet()}});
+    return{title:'الريموت والمفضلة',list:it};
+  }
   it.push({t:'وصلة TV · dimo',f:function(){}});
   it.push({t:'الإصدار '+VER,f:function(){}});
   it.push({t:'🌐 https://wasslatv.blogspot.com/',f:function(){openUrl('https://wasslatv.blogspot.com/')}});
@@ -338,6 +359,18 @@ function items(){
     H.forEach(function(o){it.push({t:o.c.name+' · '+o.s.name,f:function(){o.s.hid=(o.s.hid||[]).filter(function(u){return u!==o.c.url});saveSrcs();keep();si=Math.min(si,Math.max(0,H.length-2));drawSet()}})});
     if(!H.length)it.push({t:'لا توجد قنوات مخفية',f:back});
     return{title:'القنوات المخفية · OK لإظهار القناة',list:it};
+  }
+  if(sm==='fav'){
+    var F=favorites.slice();
+    F.forEach(function(u,i){
+      var c=ch.find(function(x){return x.url===u});
+      it.push({t:(i+1)+'. '+(c?c.name:'قناة غير متاحة'),f:function(){
+        favorites=favorites.filter(function(x){return x!==u});saveFavorites();
+        si=Math.min(si,Math.max(0,favorites.length-1));drawSet();toast('تمت الإزالة من المفضلة');
+      }});
+    });
+    if(!F.length)it.push({t:'لا توجد قنوات في المفضلة',f:function(){}});
+    return{title:'المفضلة · OK لإزالة القناة',list:it};
   }
   if(sm==='src'){
     it.push({t:s.enabled?'⛔ إيقاف المصدر':'✔ تفعيل المصدر',f:function(){s.enabled=!s.enabled;done('main',cf)}});
@@ -409,7 +442,7 @@ function items(){
   it.push({t:'↩ رجوع',f:back});
   return{title:g.name+' · '+g.urls.length+' قناة',list:it};
 }
-var CICON=['📡','📺','🖥','▶','💾','ℹ'];
+var CICON=['📡','📺','🖥','▶','💾','ℹ','🎮'];
 function K(k,t){return'<span class="kc"><kbd>'+k+'</kbd>'+t+'</span>'}
 function rowHTML(t,sel){
   var cls='it'+(sel?' sel':''),m,ic='',no='',lb='',mt='',vl='',bd='';
@@ -525,7 +558,9 @@ $('file2').onchange=function(e){
       });
       if(!ns.length)throw 0;
       srcs=ns;if(o.prefs)for(var k in o.prefs)if(k in P)P[k]=o.prefs[k];
-      saveSrcs();savePrefs();applyPrefs();keep();sm='main';si=0;drawSet();toast('تم استيراد الإعدادات');
+      normalizeFavoriteKey();
+      if(Array.isArray(o.favorites)){var fs={},fa=[];o.favorites.forEach(function(u){if(typeof u==='string'&&u&&!fs[u]){fs[u]=1;fa.push(u)}});favorites=fa}
+      saveSrcs();savePrefs();saveFavorites();applyPrefs();keep();sm='main';si=0;drawSet();toast('تم استيراد الإعدادات');
     }catch(err){toast('ملف النسخ الاحتياطي غير صالح')}
   };
   r.onerror=function(){toast('تعذر قراءة الملف')};r.readAsText(f);
@@ -547,6 +582,13 @@ function openJump(){
 function openListAt(i){openList();sel=Math.max(0,Math.min(i,view.length-1));drawList()}
 
 window.onBack=function(){if(mode==='text'){kbBack();return true}if(mode==='set'){backOnce();return true}if(mode!=='play'){closeAll();return true}return false};
+
+document.addEventListener('keyup',function(e){
+  if(e.key!=='Enter'||!enterPending)return;
+  enterPending=false;clearTimeout(T.favoriteHold);
+  if(!enterLong&&mode==='play'){ch.length?openList():openSet()}
+  enterLong=false;
+});
 
 document.addEventListener('keydown',function(e){
   var k=e.key;
@@ -611,6 +653,17 @@ document.addEventListener('keydown',function(e){
     else if(k==='Escape'||k==='Backspace'||k==='GoBack'){closeAll()}
     drawList();e.preventDefault();return;
   }
+  if(mode==='play'&&P.favoriteKey!=='longEnter'&&!e.repeat&&
+      ((P.favoriteKey==='f'&&k.toLowerCase()==='f')||k===P.favoriteKey)){
+    toggleFavorite();e.preventDefault();return;
+  }
+  if(mode==='play'&&P.favoriteKey==='longEnter'&&k==='Enter'){
+    if(!e.repeat){
+      enterPending=true;enterLong=false;
+      tm('favoriteHold',function(){if(enterPending&&mode==='play'){enterLong=true;toggleFavorite()}},600);
+    }
+    e.preventDefault();return;
+  }
   /* شاشة التشغيل: ► ×5 = المصادر · ◄ ×5 = الإعدادات */
   if(k==='ArrowRight'||k==='ArrowLeft'){
     if(!e.repeat){
@@ -628,7 +681,7 @@ document.addEventListener('keydown',function(e){
   e.preventDefault();
 });
 
-loadPrefs();loadSrcs();rebuild();
+loadPrefs();loadFavorites();loadSrcs();rebuild();
 if(!ch.length){openSet();cat=0;sm='main';si=0;drawSet();toast('أضف مصدراً أو فعّل مصدراً')}
 else{var lu=P.resume?store('lasturl'):null,li=ch.findIndex(function(c){return c.url===lu});play(li<0?0:li)}
 })();
