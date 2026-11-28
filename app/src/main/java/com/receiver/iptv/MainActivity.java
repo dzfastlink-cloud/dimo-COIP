@@ -260,7 +260,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-        if (player != null) player.play();
+        if (player != null && player.getMediaItemCount() > 0) player.play();
     }
 
     @Override
